@@ -21,19 +21,18 @@ def opt_single_stage(data, n_trails, n_iv, grate, crate, df, prices, mannual, in
           except:
               ev[(s, i)] = 0
   # update contrl with mannual and initial
-  initial['adjusted'] = 0
+  initial['min'] = 0.0
+  initial['max'] = 0.0
   for s in initial.index:
-    if initial['mannual'].loc[s] > 0:
-      if sv[s] < mannual[cap].loc[s]:
-        initial.loc[s, 'adjusted'] = sum_scale
-      else:
-        initial.loc[s, 'adjusted'] = 0
+    if sv[s] < mannual[floor].loc[s]:
+      initial.loc[s, 'max'] = sum_scale
+      initial.loc[s, 'min'] = initial.loc[s, 'mannual']
+    elif sv[s] > mannual[cap].loc[s]:
+      initial.loc[s, 'max'] = 0
+      initial.loc[s, 'min'] = 0
     else:
-      if sv[s] < mannual[floor].loc[s]:
-        initial.loc[s, 'adjusted'] = sum_scale
-      else:
-        initial.loc[s, 'adjusted'] = 0
-
+      initial.loc[s, 'max'] = initial.loc[s, 'mannual']
+      initial.loc[s, 'min'] = initial.loc[s, 'mannual']
   try:
       maximum_loss = 0.8
       print('Optimisation beginning:')
@@ -66,7 +65,9 @@ def opt_single_stage(data, n_trails, n_iv, grate, crate, df, prices, mannual, in
 
       m.addConstrs(quicksum(v_t_i[s] * prices['value'].loc[s, i, k]/sv[s] for s in s_s) + v_t_c * pow(1+crate, k) + v_k_sp[i, k] >= pow(1+crate, k) * maximum_loss for k in s_k for i in s_i)
 
-      m.addConstrs(v_t_i[s] <= initial['adjusted'].loc[s] for s in s_s)
+      m.addConstrs(v_t_i[s] <= initial['max'].loc[s] for s in s_s)
+
+      m.addConstrs(v_t_i[s] >= initial['min'].loc[s] for s in s_s)
 
       # Optimize model
       m.optimize()
@@ -103,21 +104,20 @@ def opt_second_stage(data, n_trails, n_iv, grate, crate, df, prices, mannual, in
           except:
               ev[(s, i)] = 0
   # update contrl with mannual and initial
-  initial['adjusted'] = 0
-
   # second stage updating sv for random prices
+  initial['min'] = 0.0
+  initial['max'] = 0.0
   for s in initial.index:
     sv[s] = prices['value'].loc[s, i, 0]
-    if initial['mannual'].loc[s] > 0:
-      if sv[s] < mannual[cap].loc[s]:
-        initial.loc[s, 'adjusted'] = sum_scale
-      else:
-        initial.loc[s, 'adjusted'] = 0
+    if sv[s] < mannual[floor].loc[s]:
+      initial.loc[s, 'max'] = sum_scale
+      initial.loc[s, 'min'] = initial.loc[s, 'mannual']
+    elif sv[s] > mannual[cap].loc[s]:
+      initial.loc[s, 'max'] = 0
+      initial.loc[s, 'min'] = 0
     else:
-      if sv[s] < mannual[floor].loc[s]:
-        initial.loc[s, 'adjusted'] = sum_scale
-      else:
-        initial.loc[s, 'adjusted'] = 0
+      initial.loc[s, 'max'] = initial.loc[s, 'mannual']
+      initial.loc[s, 'min'] = initial.loc[s, 'mannual']
 
   # Create a new model
   m = gp.Model("Energy Optimisation Problem")
@@ -146,7 +146,9 @@ def opt_second_stage(data, n_trails, n_iv, grate, crate, df, prices, mannual, in
 
   m.addConstrs(quicksum(v_t_i[s] * prices['value'].loc[s, i, k]/sv[s] for s in s_s) + v_t_c * pow(1+crate, k) + v_k_sp[k] >= pow(1+crate, k) * maximum_loss for k in s_k)
 
-  m.addConstrs(v_t_i[s] <= initial['adjusted'].loc[s] for s in s_s)
+  m.addConstrs(v_t_i[s] <= initial['max'].loc[s] for s in s_s)
+
+  m.addConstrs(v_t_i[s] >= initial['min'].loc[s] for s in s_s)
 
   # Optimize model
   m.optimize()
@@ -175,19 +177,29 @@ def opt_multi_stage(data, n_trails, n_iv, grate, crate, df, prices, mannual, ini
           except:
               ev[(s, i)] = 0
   # update contrl with mannual and initial
-  initial['adjusted'] = 0
-
+  initial['min_1'] = 0.0
+  initial['max_1'] = 0.0
+  initial['min_2'] = 0.0
+  initial['max_2'] = 0.0
   for s in initial.index:
-    if initial['mannual'].loc[s] > 0:
-      if sv[s] < mannual[cap].loc[s]:
-        initial.loc[s, 'adjusted'] = sum_scale
-      else:
-        initial.loc[s, 'adjusted'] = 0
+    if sv[s] < mannual[floor].loc[s]:
+      initial.loc[s, 'max_1'] = sum_scale
+      initial.loc[s, 'min_1'] = initial.loc[s, 'mannual']
+    elif sv[s] > mannual[cap].loc[s]:
+      initial.loc[s, 'max_1'] = 0
+      initial.loc[s, 'min_1'] = 0
     else:
-      if sv[s] < mannual[floor].loc[s]:
-        initial.loc[s, 'adjusted'] = sum_scale
-      else:
-        initial.loc[s, 'adjusted'] = 0
+      initial.loc[s, 'max_1'] = initial.loc[s, 'mannual']
+      initial.loc[s, 'min_1'] = initial.loc[s, 'mannual']
+    if prices['value'].loc[s, i, 0] < mannual[floor].loc[s]:
+      initial.loc[s, 'max_2'] = sum_scale
+      initial.loc[s, 'min_2'] = initial.loc[s, 'mannual']
+    elif prices['value'].loc[s, i, 0] > mannual[cap].loc[s]:
+      initial.loc[s, 'max_2'] = 0
+      initial.loc[s, 'min_2'] = 0
+    else:
+      initial.loc[s, 'max_2'] = initial.loc[s, 'mannual']
+      initial.loc[s, 'min_2'] = initial.loc[s, 'mannual']
 
   try:
       maximum_loss = 0.8
@@ -230,7 +242,7 @@ def opt_multi_stage(data, n_trails, n_iv, grate, crate, df, prices, mannual, ini
       
       for j in second_stage_scenarios:
           m.addConstr(v_p_sf_2[j] + v_p_sp_2[j] * end_p_scale + quicksum(v_k_sp_2[j, k] for k in s_k) * mid_p_scale <= temp_2[j])
-          m.addConstr(temp_2[j] - stage_2p <= obj_2[j] * relax_2 + 0.01, name=f"stage_2_constraint_{j}")
+          m.addConstr(temp_2[j] - stage_2p <= 0, name=f"stage_2_constraint_{j}")  # obj_2[j] * relax_2 + 0.01 obj_2 does not seem to be useful, using 0 for now
 
       # Add constraint stage 1:     
       m.addConstr(quicksum(v_t_i_1[s] for s in s_s) + v_t_c_1 == 1)
@@ -241,7 +253,9 @@ def opt_multi_stage(data, n_trails, n_iv, grate, crate, df, prices, mannual, ini
 
       m.addConstrs(quicksum(v_t_i_1[s] * prices['value'].loc[s, i, k]/sv[s] for s in s_s) + v_t_c_1 * pow(1+crate, k) + v_k_sp_1[i, k] >= pow(1+crate, k) * maximum_loss for k in s_k for i in s_i)
 
-      m.addConstrs(v_t_i_1[s] <= initial['adjusted'].loc[s] for s in s_s)
+      m.addConstrs(v_t_i_1[s] <= initial['max_1'].loc[s] for s in s_s)
+
+      m.addConstrs(v_t_i_1[s] >= initial['min_1'].loc[s] for s in s_s)
 
       # Add constraint stage 2:     
       m.addConstr(quicksum(v_t_i_2[s] for s in s_s) + v_t_c_2 == 1)
@@ -252,7 +266,9 @@ def opt_multi_stage(data, n_trails, n_iv, grate, crate, df, prices, mannual, ini
 
       m.addConstrs(quicksum(v_t_i_2[s] * prices['value'].loc[s, i, k]/sv[s] for s in s_s) + v_t_c_2 * pow(1+crate, k) + v_k_sp_2[i, k] >= pow(1+crate, k) * maximum_loss for k in s_k for i in s_i)
 
-      m.addConstrs(v_t_i_2[s] <= initial['adjusted'].loc[s] for s in s_s)
+      m.addConstrs(v_t_i_2[s] <= initial['max_2'].loc[s] for s in s_s)
+
+      m.addConstrs(v_t_i_2[s] >= initial['min_2'].loc[s] for s in s_s)
 
       # Optimize model
       m.optimize()

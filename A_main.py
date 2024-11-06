@@ -4,9 +4,9 @@ import C_optimisation
 
 
 # read csv inputs
-data_path   = 'C:\\Users\\yimzhang3\\OneDrive - The University of Melbourne\\Documents\\Local Files\\Gurobi Tutorial\\inputs\\i_scenarios.csv'
-cor_path    = 'C:\\Users\\yimzhang3\\OneDrive - The University of Melbourne\\Documents\\Local Files\\Gurobi Tutorial\\inputs\\cor_matrix.csv'
-out_path    = 'C:\\Users\\yimzhang3\\OneDrive - The University of Melbourne\\Documents\\Local Files\\Gurobi Tutorial\\outputs\\'
+data_path   = 'C:\\Users\\yimzhang3\\OneDrive - The University of Melbourne\\Documents\\Local Files\\Optimisation_w_gp\\optimisation_w_gp\\inputs\\i_scenarios.csv'
+cor_path    = 'C:\\Users\\yimzhang3\\OneDrive - The University of Melbourne\\Documents\\Local Files\\Optimisation_w_gp\\optimisation_w_gp\\inputs\\cor_matrix.csv'
+out_path    = 'C:\\Users\\yimzhang3\\OneDrive - The University of Melbourne\\Documents\\Local Files\\Optimisation_w_gp\\optimisation_w_gp\\outputs\\'
 
 # control parameters
 pre         = 0
@@ -90,18 +90,21 @@ if sc == 1:
 
 if sopt == 1:
     first_stage_scenarios   = 10000
-    second_stage_scenarios  = 100
+    run_stage_2 = 1
+    second_stage_scenarios  = 10000
     df = pd.read_csv(out_path+'Ending_value_adjusted.csv').set_index('Code')
     prices  = pd.read_csv(out_path+'prices.csv').set_index(['s', 'i', 'k'])
     mannual = pd.read_csv(out_path+'/i_mannual_control.csv').set_index('Code')
     initial = pd.read_csv(out_path+'/i_mannual_initial.csv').set_index('index')
     obj_1 = C_optimisation.opt_single_stage(data, first_stage_scenarios, n_iv, grate, crate, df, prices, mannual, initial)
     obj_2 = dict()
-    for i in range(second_stage_scenarios):
-        obj_2[i] = C_optimisation.opt_second_stage(data, first_stage_scenarios, n_iv, grate, crate, df, prices, mannual, initial, i)
+    if run_stage_2 == 0:
+        exit()
+    # for i in range(second_stage_scenarios):
+    #     obj_2[i] = C_optimisation.opt_second_stage(data, first_stage_scenarios, n_iv, grate, crate, df, prices, mannual, initial, i)
     print(obj_1)
     print(obj_2)
-    relax_1 = 1.01
+    relax_1 = 1.1
     relax_2 = 1.01
     C_optimisation.opt_multi_stage(data, first_stage_scenarios, n_iv, grate, crate, df, prices, mannual, initial, obj_1, obj_2, relax_1, relax_2, range(second_stage_scenarios))
 
