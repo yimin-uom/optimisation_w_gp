@@ -1,0 +1,13 @@
+225*
+Sample/*
+*.lst
+*.log
+*.cmd
+*.dat
+*.gdx
+*.g00
+*.pyc
+*.~gm
+python_code/__pycache__/*
+plotting/figures/*
+__pycache__/*
