@@ -65,9 +65,9 @@ def opt_single_stage(data, n_trails, n_iv, grate, crate, df, prices, mannual, in
 
       m.addConstrs(quicksum(v_t_i[s] * prices['value'].loc[s, i, k]/sv[s] for s in s_s) + v_t_c * pow(1+crate, k) + v_k_sp[i, k] >= pow(1+crate, k) * maximum_loss for k in s_k for i in s_i)
 
-      m.addConstrs(v_t_i[s] <= initial['max'].loc[s] for s in s_s)
+      # m.addConstrs(v_t_i[s] <= initial['max'].loc[s] for s in s_s)
 
-      m.addConstrs(v_t_i[s] >= initial['min'].loc[s] for s in s_s)
+      # m.addConstrs(v_t_i[s] >= initial['min'].loc[s] for s in s_s)
 
       # Optimize model
       m.optimize()

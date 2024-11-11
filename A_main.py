@@ -90,7 +90,7 @@ if sc == 1:
 
 if sopt == 1:
     first_stage_scenarios   = 10000
-    run_stage_2 = 1
+    run_stage_2 = 0
     second_stage_scenarios  = 10000
     df = pd.read_csv(out_path+'Ending_value_adjusted.csv').set_index('Code')
     prices  = pd.read_csv(out_path+'prices.csv').set_index(['s', 'i', 'k'])
