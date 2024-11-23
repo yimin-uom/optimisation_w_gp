@@ -5,7 +5,7 @@ from scipy.stats import halfnorm
 import random
 
 min_g   = 0.03
-peg_std = 0.7
+peg_std = 0.39
 
 ## reorganise the series to match correlation ##
 def adjust_lists_to_desired_inter_correlations(lists, desired_inter_list_corrs, max_iterations, tolerance=1e-2):
@@ -123,7 +123,7 @@ def generate_scenarios(data, cor_matrix, z_sgm, n_trails, n_iv, maxit, per_risk,
     s_i += 1
     for i in range(n_trails):
       trails[(s,i)].append(iiiv[i])
-      trail_rate[(s,i)].append(max(pow((1+data_s.loc['o']) * iiiv[i] / data_s.loc['i'], 1/3)-1,min_g))
+      trail_rate[(s,i)].append(max(pow((1+data_s.loc['o']) * iiiv[i] / data_s.loc['i'], 1/3)-1, min_g))
     ## stage iv ##
     ivv = iiiv/data_s.loc['ii_med'] - data_s.loc['iii_med']/data_s.loc['ii_med']
     for y in range(n_iv):
@@ -184,6 +184,7 @@ def no_regret_price(data, n_trails, n_iv, ev, trails, grate, crate, p_tile_low, 
   cd_min_50 = dict()
   cd_max_50 = dict()
   prices    = dict()
+  eps       = dict()
   for s in data.index:
     min_list = list()
     max_list = list()
@@ -197,8 +198,10 @@ def no_regret_price(data, n_trails, n_iv, ev, trails, grate, crate, p_tile_low, 
       trail_rate[(s,i)] = [min_g if isinstance(x, float) and np.isnan(x) else x for x in trail_rate[(s,i)]]
       peg = [3*pow(x,2)-7*x+3 for x in trail_rate[(s,i)]]
       for k in range(len(trails[(s,i)])):
-        peg_j = max(peg[k],1) + random.uniform(-peg_std, peg_std)
-        prices[(s,i,k)] = max(trails[(s,i)][k] * trail_rate[(s,i)][k] * peg_j * 100, 0)
+        peg_j = max(peg[k], 0.5) * (1 + 1.65 * random.uniform(-peg_std, peg_std)) # try nomral distribution or uniform distribution np.random.normal(0, peg_std)
+        pe_j  = max(trail_rate[(s,i)][k] * peg_j * 100, 2)
+        prices[(s,i,k)] = max(trails[(s,i)][k] * pe_j, 0)
+        eps[(s,i,k)] = trails[(s,i)][k]
         i_list.append(prices[(s,i,k)])
         igd_list.append(prices[(s,i,k)]/pow(1+grate, k+1))
         icd_list.append(prices[(s,i,k)]/pow(1+crate, k+1))
@@ -206,10 +209,10 @@ def no_regret_price(data, n_trails, n_iv, ev, trails, grate, crate, p_tile_low, 
       max_list.append(max(igd_list))
       cmin_list.append(min(icd_list))
       cmax_list.append(max(icd_list))
-    ud_min[s]     = np.round(np.percentile(min_list, p_tile_low),2)         # no discount
+    ud_min[s]     = np.round(np.percentile(min_list, 100-p_tile_low),2)         # no discount
     hd_max[s]     = np.round(np.percentile(max_list, p_tile_low),2)         # high discount
     cd_min_80[s]  = np.round(np.percentile(cmin_list, p_tile_low),2)        # low discount 80% chance
     cd_max_80[s]  = np.round(np.percentile(cmax_list, p_tile_low),2)
     cd_min_50[s]  = np.round(np.percentile(cmin_list, p_tile_high),2)       # low discount 50% chance
     cd_max_50[s]  = np.round(np.percentile(cmax_list, p_tile_high),2)
-  return ud_min, hd_max, cd_min_80, cd_max_80, cd_min_50, cd_max_50, prices
+  return ud_min, hd_max, cd_min_80, cd_max_80, cd_min_50, cd_max_50, prices, eps

@@ -1,7 +1,7 @@
 import pandas as pd
 import B_pre_processing, B_generate_scenarios
-import C_optimisation
-
+import C_optimisation_sizing as C_optimisation
+import D_optimisation_timing as D_optimisation
 
 # read csv inputs
 data_path   = 'C:\\Users\\yimzhang3\\OneDrive - The University of Melbourne\\Documents\\Local Files\\Optimisation_w_gp\\optimisation_w_gp\\inputs\\i_scenarios.csv'
@@ -12,7 +12,8 @@ out_path    = 'C:\\Users\\yimzhang3\\OneDrive - The University of Melbourne\\Doc
 pre         = 0
 gs          = 0
 sc          = 0
-sopt        = 1
+copt        = 1
+dopt        = 0
 
 # fixed parameters
 # generate scenarios
@@ -61,7 +62,7 @@ if sc == 1:
     val_s = B_generate_scenarios.simple_calculation(data, n_trails, n_iv, ev, trails, sc, crate, p_tile_high)
     df = pd.DataFrame(list(val_s.items()), columns=['Code', 'Central']).set_index('Code')
     # df.to_csv(out_path+'Calc_value_s.csv', index=True)
-    ud_min, hd_max, cd_min_80, cd_max_80, cd_min_50, cd_max_50, prices = B_generate_scenarios.no_regret_price(data, n_trails, n_iv, ev, trails, grate, crate, p_tile_low, p_tile_high, trail_rate)
+    ud_min, hd_max, cd_min_80, cd_max_80, cd_min_50, cd_max_50, prices, eps = B_generate_scenarios.no_regret_price(data, n_trails, n_iv, ev, trails, grate, crate, p_tile_low, p_tile_high, trail_rate)
     df_max = pd.DataFrame(list(ud_min.items()), columns=['Code', 'ud_min']).set_index('Code')
     df_min = pd.DataFrame(list(hd_max.items()), columns=['Code', 'hd_max']).set_index('Code')
     df = pd.concat([df, df_max, df_min], axis=1)
@@ -77,18 +78,23 @@ if sc == 1:
     df = df.drop(columns=['key'])
     df = df[['s', 'i', 'k', 'value']]
     df.to_csv(out_path+'prices.csv', index=False)
+    df = pd.DataFrame(list(eps.items()), columns=['key', 'value'])
+    df[['s', 'i', 'k']] = pd.DataFrame(df['key'].tolist(), index=df.index)
+    df = df.drop(columns=['key'])
+    df = df[['s', 'i', 'k', 'value']]
+    df.to_csv(out_path+'eps.csv', index=False)
     ctrl = pd.DataFrame(columns=['Code', 'i', 'ii', 'iii', 'iv', 'v'])
     ctrl['Code']    = df_combined.index
     ctrl            = ctrl.set_index('Code')
     ctrl['i']       = df_combined['Central']
-    ctrl['ii']      = df_combined['ud_min']/0.7
+    ctrl['ii']      = df_combined['ud_min']
     ctrl['iii']     = df_combined['hd_max']
     ctrl['iv']      = (df_combined['cd_min_80']+df_combined['cd_max_80'])/2
     ctrl['v']       = (df_combined['cd_min_50']*2+df_combined['cd_max_50'])/3
     ctrl = second_max_min(ctrl, ['i', 'ii', 'iii', 'iv', 'v'])
     ctrl.to_csv(out_path+'i_mannual_control.csv', index=True)
 
-if sopt == 1:
+if copt == 1:
     first_stage_scenarios   = 10000
     run_stage_2 = 0
     second_stage_scenarios  = 10000
@@ -108,4 +114,10 @@ if sopt == 1:
     relax_2 = 1.01
     C_optimisation.opt_multi_stage(data, first_stage_scenarios, n_iv, grate, crate, df, prices, mannual, initial, obj_1, obj_2, relax_1, relax_2, range(second_stage_scenarios))
 
-    
+if dopt == 1:
+    df = pd.read_csv(out_path+'Ending_value_adjusted.csv').set_index('Code')
+    prices  = pd.read_csv(out_path+'prices.csv').set_index(['s', 'i', 'k'])
+    for s in df.index:
+        print(s)
+        D_optimisation.rules(data, n_trails, n_iv, grate, crate, df, prices, mannual, initial)
+        exit()
